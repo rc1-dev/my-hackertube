@@ -9,6 +9,7 @@ Writes (and wipes first):
   docs/data/taxonomy.json   areas -> categories with video counts
   docs/data/v/<vid>.json    per video: top 5 HN mentions + related vids
   docs/data/paths.json      learning paths, from scripts/paths.json (curated by hand)
+  docs/data/timeline.json   per year: most recommended, first recommended, standout categories
 """
 import json
 import shutil
@@ -28,6 +29,9 @@ VIDEOS_FIELDS = [
     "vid", "title", "channel", "score", "shelf", "type", "level", "cats",
     "summary", "why", "recs", "y0", "y1", "quote",
 ]
+N_TIMELINE = 24          # per list per year; the UI shows fewer after hiding news
+STANDOUT_MIN_RECS = 8    # a category needs this many recs in a year to "stand out"
+REC_STANCES = ("strong_rec", "rec")
 STANCE_RANK = {"strong_rec": 0, "rec": 1, "reference": 2, "critical": 3, "joke": 4}
 
 
@@ -66,6 +70,61 @@ def mention_key(m):
         0 if m.get("why") else 1,
         "" if not m.get("month") else "".join(chr(255 - ord(c)) for c in m["month"]),
     )
+
+
+def build_timeline(videos, mentions):
+    """Per calendar year of the HN comment: who recommended what.
+
+    top:      videos with the most distinct recommenders that year
+              (ties: more strong recs that year, then overall score)
+    debuts:   videos whose first recommendation came that year, best score first
+    standout: categories with the biggest share of that year's recs relative to all years
+    """
+    by_vid = {v["vid"]: v for v in videos}
+    people = defaultdict(lambda: defaultdict(set))   # year -> vid -> authors
+    strong = defaultdict(Counter)                    # year -> vid -> strong recs
+    authors = defaultdict(set)
+    recs = Counter()
+    first = {}
+    cat_year = defaultdict(Counter)
+    cat_all = Counter()
+    last_month = ""
+    for m in mentions:
+        if m["stance"] not in REC_STANCES or not m.get("month") or m["vid"] not in by_vid:
+            continue
+        y = int(m["month"][:4])
+        last_month = max(last_month, m["month"])
+        people[y][m["vid"]].add(m.get("author") or m["hn_comment_id"])
+        authors[y].add(m.get("author") or m["hn_comment_id"])
+        recs[y] += 1
+        if m["stance"] == "strong_rec":
+            strong[y][m["vid"]] += 1
+        first[m["vid"]] = min(first.get(m["vid"], y), y)
+        for c in by_vid[m["vid"]].get("categories") or []:
+            cat_year[y][c["id"]] += 1
+            cat_all[c["id"]] += 1
+
+    debuts = defaultdict(list)
+    for vid, y in first.items():
+        debuts[y].append(vid)
+    total = sum(cat_all.values())
+    years = []
+    for y in sorted(recs):
+        ranked = sorted(people[y], key=lambda vid: (
+            -len(people[y][vid]), -strong[y][vid], -by_vid[vid]["score"], vid))
+        deb = sorted(debuts[y], key=lambda vid: (-by_vid[vid]["score"], vid))
+        n = sum(cat_year[y].values())
+        lift = sorted(
+            ((k / n) / (cat_all[c] / total), c) for c, k in cat_year[y].items()
+            if k >= STANDOUT_MIN_RECS and k >= n * 0.01)
+        years.append({
+            "y": y, "recs": recs[y], "people": len(authors[y]), "videos": len(people[y]),
+            "new": len(deb),
+            "top": [[vid, len(people[y][vid])] for vid in ranked[:N_TIMELINE]],
+            "debuts": deb[:N_TIMELINE],
+            "standout": [c for _, c in lift[::-1][:3]],
+        })
+    return {"through": last_month, "years": years}
 
 
 def main():
@@ -113,6 +172,7 @@ def main():
     for m in read_jsonl(SRC / "mentions.jsonl"):
         if m["vid"] in vids:
             by_vid[m["vid"]].append(m)
+    all_mentions = [m for ms in by_vid.values() for m in ms]
     related = {}
     for r in read_jsonl(SRC / "related.jsonl"):
         related[r["vid"]] = [x["vid"] for x in r["related"] if x["vid"] in vids][:N_RELATED]
@@ -151,6 +211,11 @@ def main():
             seen.add(s["vid"])
     dump(OUT / "paths.json", paths)
     print(f"paths.json: {len(paths)} paths, {sum(len(p['steps']) for p in paths)} steps")
+
+    # timeline.json ---------------------------------------------------------
+    tl = build_timeline(videos, all_mentions)
+    size = dump(OUT / "timeline.json", tl)
+    print(f"timeline.json: {len(tl['years'])} years through {tl['through']}, {size / 1e3:.0f} KB")
 
     (ROOT / "docs" / ".nojekyll").touch()
 

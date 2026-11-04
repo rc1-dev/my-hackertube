@@ -18,17 +18,26 @@ docs/                      the site (GitHub Pages root)
   index.html               home: grid by score, area chips, search, news hidden by default
   category.html            no param: all areas/categories; ?c=<id>: that category
   watch.html?v=<vid>       embed, summary, why HN likes it, HN quotes, related
+  paths.html               no param: all learning paths; ?p=<id>: that path
+  timeline.html            recs-per-year chart, then each year (newest first); #y<year> jumps
   assets/app.js            all page logic (routes on <body data-page>)
   assets/style.css
   data/                    GENERATED, committed, so Pages can serve it
     videos.json            {"fields":[...], "rows":[[...]]} ~3.7 MB, score order
     taxonomy.json          areas -> categories with `count`
     v/<vid>.json           {"mentions":[top 5 recs], "related":[vid,...]}
+    paths.json             learning paths, from scripts/paths.json (hand-curated)
+    timeline.json          {"through":"YYYY-MM","years":[{y, recs, people, videos, new,
+                           top:[[vid, recommenders that year]], debuts:[vid], standout:[cat id]}]}
   .nojekyll
 ```
 
 `videos.json` fields: vid, title, channel, score, shelf, type, level, cats (category ids),
 summary, why (why_hn), recs (hn.recommenders), y0/y1 (first/last year), quote.
+Timeline years come from the month of rec/strong_rec comments. `top` ranks by distinct
+recommenders that year, `debuts` are videos first recommended that year (best score first),
+`standout` are categories over-represented that year versus all years (at least 8 recs).
+Lists carry 24 entries including news so the UI can hide news and still show 12/8.
 Per-video `mentions` are rec/strong_rec only, strong first. Videos with no recommendations
 fall back to `reference` mentions, and the UI labels those "cited".
 
