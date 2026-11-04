@@ -1,0 +1,1 @@
+{"mentions":[{"id":40466099,"author":"jcparkyn","month":"2024-05","story":"Your Transformer is Secretly Linear","stance":"rec","why":"Neural network using floating point error as source of non-linearity","quote":"A fun example of that (making a neural network using floating point error as a source of non-linearity)"}],"related":[]}

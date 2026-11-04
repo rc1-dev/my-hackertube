@@ -1,0 +1,1 @@
+{"mentions":[{"id":32503611,"author":"brundolf","month":"2022-08","story":"Not using useCallback is premature optimization","stance":"rec","why":"React Conf talk on auto-memoizing compiler and memoization as default.","quote":"I wanted to share this talk given at a recent React Conf"}],"related":["8--5LwHRhjk","SSH5EY-W5oM"]}

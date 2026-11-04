@@ -1,0 +1,1 @@
+{"mentions":[{"id":18980358,"author":"_msw_","month":"2019-01","story":"Twitter migrates data to Google Cloud","stance":"rec","why":"Deep dive on Nitro hypervisor avoiding guest VM interruptions, with a real-time customer.","quote":"With the Nitro hypervisor, there are no management tasks that share CPUs with guest workloads."}],"related":[]}
