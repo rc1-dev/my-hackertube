@@ -312,12 +312,69 @@
     }).catch(function (e) { console.warn(e); });
   }
 
+  // ---------- learning paths ----------
+  var LEVEL_LABEL = { intro: "Intro", general: "General", intermediate: "Intermediate", advanced: "Advanced" };
+
+  function pathsPage(d, id) {
+    var main = $("main");
+    main.textContent = "";
+    getJSON("data/paths.json").then(function (paths) {
+      var p = paths.filter(function (x) { return x.id === id; })[0];
+      if (!p) return pathsIndex(main, d, paths);
+      document.title = p.title + " · Learning paths · HackerTube";
+      main.appendChild(el("div", { class: "page-head" }, [
+        el("div", { class: "crumb" }, [el("a", { href: "paths.html", text: "Paths" })]),
+        el("h1", { text: p.title }),
+        el("p", { text: p.blurb + " " + p.steps.length + " videos, ordered from first steps to harder material." }),
+      ]));
+      var list = el("ol", { class: "steps" });
+      p.steps.forEach(function (s, i) {
+        var v = d.byVid[s.vid];
+        if (!v) return;
+        list.appendChild(el("li", { class: "step" }, [
+          el("span", { class: "step-n", text: String(i + 1) }),
+          el("a", { class: "card", href: "watch.html?v=" + encodeURIComponent(v.vid), title: v.title }, [thumb(v.vid, null)]),
+          el("div", { class: "step-body" }, [
+            el("p", { class: "step-line", text: s.line }),
+            el("a", { class: "step-title", href: "watch.html?v=" + encodeURIComponent(v.vid), text: v.title }),
+            el("div", { class: "meta" }, [
+              el("span", { text: v.channel }),
+              LEVEL_LABEL[v.level] ? el("span", { class: "dot", text: LEVEL_LABEL[v.level] }) : null,
+            ]),
+          ]),
+        ]));
+      });
+      main.appendChild(list);
+    }).catch(fail);
+  }
+
+  function pathsIndex(main, d, paths) {
+    document.title = "Learning paths · HackerTube";
+    main.textContent = "";
+    main.appendChild(el("div", { class: "page-head" }, [
+      el("h1", { text: "Learning paths" }),
+      el("p", { text: paths.length + " short reading lists from the videos HN recommends, each ordered from intro to advanced." }),
+    ]));
+    var grid = el("div", { class: "grid" });
+    paths.forEach(function (p) {
+      var first = d.byVid[p.steps[0].vid];
+      grid.appendChild(el("a", { class: "card", href: "paths.html?p=" + encodeURIComponent(p.id) }, [
+        first ? thumb(first.vid, null) : null,
+        el("h3", { text: p.title }),
+        el("div", { class: "meta" }, [el("span", { text: p.steps.length + " videos" })]),
+        el("p", { class: "path-blurb", text: p.blurb }),
+      ]));
+    });
+    main.appendChild(grid);
+  }
+
   // ---------- boot ----------
   var page = document.body.dataset.page;
   if (page !== "home") wireSearch(null); // header search submits to the home page
   loadVideos().then(function (d) {
     if (page === "home") home(d);
     else if (page === "category") params.get("c") ? categoryPage(d, params.get("c")) : categoryIndex(d);
+    else if (page === "paths") pathsPage(d, params.get("p"));
     else if (page === "watch") watch(d, params.get("v"));
   }).catch(fail);
 })();

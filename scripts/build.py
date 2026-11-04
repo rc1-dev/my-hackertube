@@ -8,6 +8,7 @@ Writes (and wipes first):
   docs/data/videos.json     all videos, array-of-arrays with a "fields" header
   docs/data/taxonomy.json   areas -> categories with video counts
   docs/data/v/<vid>.json    per video: top 5 HN mentions + related vids
+  docs/data/paths.json      learning paths, from scripts/paths.json (curated by hand)
 """
 import json
 import shutil
@@ -135,6 +136,21 @@ def main():
         total += dump(OUT / "v" / f"{v['vid']}.json",
                       {"mentions": out, "related": related.get(v["vid"], [])})
     print(f"v/*.json: {len(videos)} files, {total / 1e6:.2f} MB total")
+
+    # paths.json ------------------------------------------------------------
+    paths = json.load(open(ROOT / "scripts" / "paths.json", encoding="utf-8"))
+    for p in paths:
+        seen = set()
+        if not 5 <= len(p["steps"]) <= 10:
+            raise SystemExit(f"path {p['id']}: needs 5-10 steps, has {len(p['steps'])}")
+        for s in p["steps"]:
+            if s["vid"] not in vids:
+                raise SystemExit(f"path {p['id']}: unknown video {s['vid']}")
+            if s["vid"] in seen:
+                raise SystemExit(f"path {p['id']}: duplicate video {s['vid']}")
+            seen.add(s["vid"])
+    dump(OUT / "paths.json", paths)
+    print(f"paths.json: {len(paths)} paths, {sum(len(p['steps']) for p in paths)} steps")
 
     (ROOT / "docs" / ".nojekyll").touch()
 
