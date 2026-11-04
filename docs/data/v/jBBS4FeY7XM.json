@@ -1,0 +1,1 @@
+{"mentions":[{"id":38361432,"author":"vindarel","month":"2023-11","story":"Interactive Common Lisp Development","stance":"rec","why":"Five-minute demo resuming long-running program after recompiling fixed function.","quote":"my demo to show how to resume execution of a long running program, from the stack frame right before the bug"}],"related":[]}
