@@ -68,10 +68,15 @@
     img.addEventListener("load", function () { if (img.naturalWidth <= 120) fallbackThumb(img); });
     return el("span", { class: "thumb" }, [img, score != null ? el("span", { class: "badge", title: "HackerTube score", text: "★ " + score }) : null]);
   }
-  function card(v) {
+  function plural(n, one, many) { return n.toLocaleString() + " " + (n === 1 ? one : many); }
+  // extra: optional meta strings shown after the channel instead of recommenders + years
+  function card(v, extra) {
     var meta = [el("span", { text: v.channel })];
-    if (v.recs) meta.push(el("span", { class: "dot", text: v.recs + (v.recs === 1 ? " HN recommender" : " HN recommenders") }));
-    if (v.y0) meta.push(el("span", { class: "dot", text: v.y0 === v.y1 ? String(v.y0) : v.y0 + "–" + v.y1 }));
+    if (extra) extra.forEach(function (t) { meta.push(el("span", { class: "dot", text: t })); });
+    else {
+      if (v.recs) meta.push(el("span", { class: "dot", text: plural(v.recs, "HN recommender", "HN recommenders") }));
+      if (v.y0) meta.push(el("span", { class: "dot", text: v.y0 === v.y1 ? String(v.y0) : v.y0 + "–" + v.y1 }));
+    }
     return el("a", { class: "card", href: "watch.html?v=" + encodeURIComponent(v.vid), title: v.title }, [
       thumb(v.vid, v.score),
       el("h3", { text: v.title }),
@@ -368,6 +373,99 @@
     main.appendChild(grid);
   }
 
+  // ---------- timeline ----------
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var TL_TOP = 12, TL_DEBUTS = 8;
+
+  function timeline(d) {
+    var main = $("main");
+    main.textContent = "";
+    document.title = "Timeline · HackerTube";
+    getJSON("data/timeline.json").then(function (tl) {
+      var years = tl.years;
+      var lastYear = years[years.length - 1].y;
+      var throughMonth = +tl.through.slice(5, 7);
+      var partial = throughMonth < 12 ? "Jan–" + MONTHS[throughMonth - 1] : "";
+      var news = newsToggle(render);
+      var body = el("div", { class: "years" });
+
+      main.appendChild(el("div", { class: "page-head" }, [
+        el("h1", { text: "Timeline" }),
+        el("p", { text: "What Hacker News recommended each year, " + years[0].y + "–" + lastYear +
+          ". Bars count comments recommending a video" + (partial ? "; " + lastYear + " runs " + partial + "." : ".") }),
+      ]));
+      main.appendChild(yearChart(years, lastYear, partial));
+      main.appendChild(el("div", { class: "toolbar" }, [news.node]));
+      main.appendChild(body);
+
+      function render() {
+        var showNews = news.get();
+        function keep(v) { return v && (showNews || v.shelf !== "news"); }
+        body.textContent = "";
+        years.slice().reverse().forEach(function (yr) {
+          var top = yr.top.map(function (t) { return [d.byVid[t[0]], t[1]]; })
+            .filter(function (t) { return keep(t[0]); }).slice(0, TL_TOP);
+          var debuts = yr.debuts.map(function (vid) { return d.byVid[vid]; }).filter(keep).slice(0, TL_DEBUTS);
+          var standout = yr.standout.filter(function (c) { return d.cats[c]; });
+          body.appendChild(el("section", { class: "year", id: "y" + yr.y }, [
+            el("div", { class: "year-head" }, [
+              el("h2", null, [String(yr.y), yr.y === lastYear && partial ? el("span", { class: "partial", text: partial }) : null]),
+              el("p", { class: "meta", text: plural(yr.recs, "recommendation", "recommendations") + " from " +
+                plural(yr.people, "person", "people") + " · " + plural(yr.videos, "video", "videos") + " · " +
+                yr.new.toLocaleString() + " recommended for the first time" }),
+            ]),
+            standout.length ? el("div", { class: "chips standout" }, [el("span", { class: "label", text: "Stood out" })].concat(
+              standout.map(function (c) {
+                return el("a", { class: "chip", href: "category.html?c=" + encodeURIComponent(c), text: d.cats[c].name });
+              }))) : null,
+            top.length ? el("h3", { text: "Most recommended" }) : null,
+            top.length ? el("div", { class: "shelf" }, top.map(function (t) {
+              return card(t[0], [plural(t[1], "recommender", "recommenders") + " in " + yr.y]);
+            })) : null,
+            debuts.length ? el("h3", { text: "First recommended in " + yr.y }) : null,
+            debuts.length ? el("div", { class: "shelf" }, debuts.map(function (v) { return card(v); })) : null,
+          ]));
+        });
+      }
+      render();
+      var target = location.hash && document.getElementById(location.hash.slice(1));
+      if (target) target.scrollIntoView();
+    }).catch(fail);
+  }
+
+  // Column chart of recommendation comments per year. Each column links to its year.
+  function yearChart(years, lastYear, partial) {
+    var max = Math.max.apply(null, years.map(function (y) { return y.recs; }));
+    var peak = years.filter(function (y) { return y.recs === max; })[0].y;
+    var readout = el("p", { class: "tl-readout", "aria-live": "polite" });
+    function describe(yr) {
+      return yr.y + (yr.y === lastYear && partial ? " (" + partial + ")" : "") + ": " +
+        plural(yr.recs, "recommendation", "recommendations") + " from " + plural(yr.people, "person", "people");
+    }
+    var resting = describe(years.filter(function (y) { return y.y === peak; })[0]) + " (peak)";
+    readout.textContent = resting;
+    var cols = el("div", { class: "tl-cols" }, years.map(function (yr) {
+      var label = yr.y === peak || yr.y === lastYear ? yr.recs.toLocaleString() : null;
+      var a = el("a", { class: "tl-col", href: "#y" + yr.y, "aria-label": describe(yr) }, [
+        el("span", { class: "tl-plot" }, [
+          // 88% leaves headroom for the value label above the tallest bar
+          el("span", { class: "tl-bar" + (yr.y === lastYear && partial ? " partial" : ""), style: "height:" + (88 * yr.recs / max).toFixed(1) + "%" },
+            [label ? el("span", { class: "tl-val", text: label }) : null]),
+        ]),
+        el("span", { class: "tl-year", text: yr.y === years[0].y || yr.y === lastYear ||
+          (yr.y % 5 === 0 && yr.y - years[0].y > 1 && lastYear - yr.y > 1) ? String(yr.y) : "" }),
+      ]);
+      function on() { readout.textContent = describe(yr); }
+      function off() { readout.textContent = resting; }
+      a.addEventListener("mouseenter", on); a.addEventListener("focus", on);
+      a.addEventListener("mouseleave", off); a.addEventListener("blur", off);
+      return a;
+    }));
+    return el("figure", { class: "tl-chart" }, [
+      el("figcaption", { text: "HN comments recommending a video, per year" }), cols, readout,
+    ]);
+  }
+
   // ---------- boot ----------
   var page = document.body.dataset.page;
   if (page !== "home") wireSearch(null); // header search submits to the home page
@@ -376,5 +474,6 @@
     else if (page === "category") params.get("c") ? categoryPage(d, params.get("c")) : categoryIndex(d);
     else if (page === "paths") pathsPage(d, params.get("p"));
     else if (page === "watch") watch(d, params.get("v"));
+    else if (page === "timeline") timeline(d);
   }).catch(fail);
 })();

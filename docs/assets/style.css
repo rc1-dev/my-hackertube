@@ -9,6 +9,7 @@
   --link: #065fd4;
   --radius: 12px;
   --gutter: 16px;
+  --bar: #e65c00;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -186,3 +187,36 @@ footer a { color: var(--link); }
   .step .card { grid-column: 2; }
   .step-body { grid-column: 2; }
 }
+
+/* timeline */
+.tl-chart { margin: 16px 0 0; max-width: 900px; }
+.tl-chart figcaption { color: var(--fg-2); font-size: 13px; margin-bottom: 8px; }
+.tl-cols { display: flex; align-items: stretch; height: 180px; border-bottom: 1px solid var(--bg-3); }
+.tl-col { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 0 1px; border-radius: 4px 4px 0 0; }
+.tl-col:hover, .tl-col:focus-visible { background: var(--bg-2); text-decoration: none; }
+.tl-col:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
+.tl-plot { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.tl-bar { position: relative; display: block; width: 100%; max-width: 24px; min-height: 2px; background: var(--bar); border-radius: 4px 4px 0 0; }
+.tl-bar.partial {
+  background: repeating-linear-gradient(135deg, var(--bar) 0 3px, color-mix(in srgb, var(--bar) 45%, transparent) 3px 6px);
+}
+.tl-val { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); padding-bottom: 2px; font-size: 11px; color: var(--fg-2); white-space: nowrap; }
+.tl-year { display: flex; justify-content: center; height: 0; font-size: 11px; color: var(--fg-2); white-space: nowrap; transform: translateY(4px); }
+/* keep the end labels inside the chart */
+.tl-col:first-child .tl-year { justify-content: flex-start; }
+.tl-col:last-child .tl-year { justify-content: flex-end; }
+.tl-col:last-child .tl-val { left: auto; right: 0; transform: none; }
+.tl-readout { margin: 22px 0 0; color: var(--fg); font-size: 13px; min-height: 1.45em; }
+.year { scroll-margin-top: 64px; padding: 20px 0 8px; border-top: 1px solid var(--bg-3); }
+.year-head h2 { margin: 0; font-size: 28px; line-height: 1.1; }
+.year-head .partial { margin-left: 8px; font-size: 14px; font-weight: 500; color: var(--fg-2); }
+.year-head .meta { margin: 4px 0 0; }
+.standout { align-items: center; padding: 10px 0 0; }
+.standout .label { flex: none; color: var(--fg-2); font-size: 13px; }
+.year h3 { font-size: 16px; margin: 16px 0 10px; }
+.shelf {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 260px; gap: 16px;
+  overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity;
+}
+.shelf .card { scroll-snap-align: start; }
+@media (max-width: 600px) { .shelf { grid-auto-columns: 75%; } }
